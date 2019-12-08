@@ -1,0 +1,169 @@
+﻿clear all
+capture log close
+set more off
+
+
+cd  "C:\Users\User\Downloads"
+* use the directory where you saved your data files
+
+
+use "dataSS2019.dta", clear  
+
+
+* Filter out canadian currency
+keep if curcd=="USD"
+
+
+* Drop for missing values of assets
+drop if missing(at)
+drop if at<0
+
+
+*Convert string variables to numeric variables and vice versa and create Dummy variable
+destring sic, replace
+destring gvkey, gen(Dgvkey)
+
+
+* Leverage
+gen lev = (dltt + dlc)/at
+label var lev "Total debt over total assets"
+* Tangibility
+gen tan = ppent/at
+label var tan "Total net property over total assets"
+
+
+
+
+gen mve = prcc_f*csho
+
+
+*Total Assets - Stockholders equity total + price fiscal year end*commen shares outstanding
+gen mb = (at-ceq+mve)/at
+label var mb "Market-to-book value,proxy for growth opportunities"
+
+
+
+
+
+
+gen log_sale = log(sale)
+label var log_sale "logarithm of net sales, proxy for size"
+
+
+* profitability
+gen roa = ebitda/at
+label var roa "Return on assets, proxy for profitability"
+
+
+
+
+
+
+
+
+* Winsorizing
+ssc install winsor
+
+
+
+
+winsor lev, gen(Wlev) p(0.01)
+winsor tan, gen(Wtan) p(0.01)
+winsor log_sale, gen(Wsale) p(0.01)
+winsor roa, gen(Wroa) p(0.01)
+winsor mb , gen(Wmb) p(0.01)
+
+
+* a) c)
+* generate under the condition (), in the condition() are variables, 1,0 are the replacement of dummy variables
+gen sample = cond( (!missing(Wlev) & !missing(Wmb) & !missing(Wtan) & !missing(Wsale) & !missing(Wroa) ) ,1,0)
+
+
+drop if sample == 0
+
+
+* drop if Wlev > 0 & sample == 1
+
+
+
+
+
+
+*collapse (sum) Wlev  sumlev=Wlev, by(gvkey)
+*drop if sumlev > 0
+
+
+* a) +   c)
+
+
+tabstat Wlev Wmb Wtan Wsale Wroa if sample ==1, statistics ( mean sd min p10 median p90 max count) columns (stats)
+tabstat Wlev lev, statistics ( mean sd min p10 median p90 max count) columns (stats)
+
+
+
+
+
+
+
+
+* b)
+corr Wlev Wmb Wtan Wsale Wroa if sample ==1
+
+
+
+
+* d)
+gen Dummynull = 0
+replace Dummynull = 1 if Wlev == 0
+sum Dummynull
+
+
+* e)
+
+
+ gen dummyV = 0
+ bysort gvkey: egen null = max(Wlev)
+ *list if null == 0
+ replace dummyV =. if null > 0 
+ sum dummyV
+* f)
+
+
+ttest Wtan, by (Dummynull)
+ttest Wmb, by (Dummynull)
+ttest Wsale, by (Dummynull)
+ttest Wroa, by (Dummynull)
+
+
+
+
+
+
+
+
+* g)
+
+
+reg Wlev Wtan Wmb Wsale Wroa
+
+
+
+
+* h)
+* gen group =(substr(sic,1,2))
+gen sic_2  = floor(sic/100)
+
+
+* h)
+* regressing winsorized leverage over every year and every sic two digit number
+xtset Dgvkey fyear
+xi: reg Wlev Wmb Wtan Wsale Wroa i.fyear i.sic_2
+
+
+*fixed effects
+* i )
+xi: xtreg Wlev Wtan Wmb Wroa Wsale i.fyear,fe
+
+
+* j)
+* taking a look at the liquidity ratio the higher the ratio the better the companys liquidity position
