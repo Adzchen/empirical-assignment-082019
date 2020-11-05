@@ -32,16 +32,12 @@ gen tan = ppent/at
 label var tan "Total net property over total assets"
 
 
-
-
 gen mve = prcc_f*csho
 
 
 *Total Assets - Stockholders equity total + price fiscal year end*commen shares outstanding
 gen mb = (at-ceq+mve)/at
 label var mb "Market-to-book value,proxy for growth opportunities"
-
-
 
 
 
@@ -58,14 +54,8 @@ label var roa "Return on assets, proxy for profitability"
 
 
 
-
-
-
 * Winsorizing
 ssc install winsor
-
-
-
 
 winsor lev, gen(Wlev) p(0.01)
 winsor tan, gen(Wtan) p(0.01)
@@ -85,31 +75,17 @@ drop if sample == 0
 * drop if Wlev > 0 & sample == 1
 
 
-
-
-
-
 *collapse (sum) Wlev  sumlev=Wlev, by(gvkey)
 *drop if sumlev > 0
 
 
 * a) +   c)
-
-
 tabstat Wlev Wmb Wtan Wsale Wroa if sample ==1, statistics ( mean sd min p10 median p90 max count) columns (stats)
 tabstat Wlev lev, statistics ( mean sd min p10 median p90 max count) columns (stats)
 
 
-
-
-
-
-
-
 * b)
 corr Wlev Wmb Wtan Wsale Wroa if sample ==1
-
-
 
 
 * d)
@@ -119,33 +95,22 @@ sum Dummynull
 
 
 * e)
-
-
  gen dummyV = 0
  bysort gvkey: egen null = max(Wlev)
  *list if null == 0
  replace dummyV =. if null > 0 
  sum dummyV
+ 
+ 
 * f)
-
-
 ttest Wtan, by (Dummynull)
 ttest Wmb, by (Dummynull)
 ttest Wsale, by (Dummynull)
 ttest Wroa, by (Dummynull)
 
 
-
-
-
-
-
-
 * g)
-
-
 reg Wlev Wtan Wmb Wsale Wroa
-
 
 
 
